@@ -74,9 +74,14 @@ class RecipeRecommender:
                 print("⚠️ Invalid total_time input ignored")
 
         if allergens:
-            for allergen in [a.strip() for a in allergens.split(',') if a.strip()]:
-                filtered_df = filtered_df[~filtered_df['Allergens'].str.contains(allergen, regex=False, na=False)]
-                print(f"After allergen filter ({allergen}):", len(filtered_df))
+            for allergen in [a.strip().lower() for a in allergens.split(',') if a.strip()]:
+              # Exclude if allergen is in Allergens column OR in Ingredients
+              mask = (
+                  ~filtered_df['Allergens'].str.contains(allergen, regex=False, na=False) &
+                  ~filtered_df['Ingredients'].str.contains(allergen, regex=False, na=False)
+              )
+              filtered_df = filtered_df[mask]
+              print(f"After allergen filter ({allergen}):", len(filtered_df))
 
         if filtered_df.empty:
             return "🚫 No matching recipes found. Try adjusting filters.", self.eval_results
