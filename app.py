@@ -1,3 +1,5 @@
+from google.colab import drive
+drive.mount('/content/drive')
 
 !pip install gradio sentence-transformers openpyxl
 
@@ -53,19 +55,33 @@ class RecipeRecommender:
 
     def recommend_ui(self, recipe_name, ingredients, total_time, allergens, diet):
         filtered_df = self.df.copy()
+        print("Initial recipes count:", len(filtered_df))
+
         if recipe_name:
-            filtered_df = filtered_df[filtered_df['RecipeName'].str.contains(recipe_name.lower())]
+            filtered_df = filtered_df[filtered_df['RecipeName'].str.contains(recipe_name.lower(), regex=False, na=False)]
+            print(f"After recipe_name filter ({recipe_name}):", len(filtered_df))
+
         if diet:
-            filtered_df = filtered_df[filtered_df['Diet'].str.contains(diet.lower())]
+            filtered_df = filtered_df[filtered_df['Diet'].str.contains(diet.lower(), regex=False, na=False)]
+            print(f"After diet filter ({diet}):", len(filtered_df))
+
         if total_time:
-            filtered_df = filtered_df[filtered_df['TotalTimeInMins'] <= int(total_time)]
+            try:
+                max_time = int(total_time)
+                filtered_df = filtered_df[filtered_df['TotalTimeInMins'] <= max_time]
+                print(f"After total_time filter (<= {max_time} mins):", len(filtered_df))
+            except ValueError:
+                print("⚠️ Invalid total_time input ignored")
+
         if allergens:
             for allergen in [a.strip() for a in allergens.split(',') if a.strip()]:
-                filtered_df = filtered_df[~filtered_df['Allergens'].str.contains(allergen)]
+                filtered_df = filtered_df[~filtered_df['Allergens'].str.contains(allergen, regex=False, na=False)]
+                print(f"After allergen filter ({allergen}):", len(filtered_df))
 
         if filtered_df.empty:
             return "🚫 No matching recipes found. Try adjusting filters.", self.eval_results
 
+        # Build query text
         query_text = (recipe_name + " " if recipe_name else "") + ingredients
         top_results = self.recommend(query_text, filtered_df, top_k=5)
 
@@ -79,6 +95,7 @@ class RecipeRecommender:
             output += "---\n"
 
         return output, self.eval_results
+
 
     def _evaluate(self, top_k=5):
         mrr_list, p_at_k_list, r_at_k_list = [], [], []
@@ -114,7 +131,7 @@ class RecipeRecommender:
 """
 # ================== Launch Gradio UI ==================
 def launch_app():
-    recommender = RecipeRecommender("/content/drive/MyDrive/recipe_recommender/IndianFoodDataset_Allergens_finallll.xlsx")
+    recommender = RecipeRecommender("/content/drive/MyDrive/recipe recommender project/IndianFoodDataset_Allergens_finallll.xlsx")
 
     def interface(recipe_name, ingredients, total_time, allergens, diet):
         return recommender.recommend_ui(recipe_name, ingredients, total_time, allergens, diet)
@@ -138,4 +155,3 @@ def launch_app():
     ).launch()
 
 launch_app()
-
